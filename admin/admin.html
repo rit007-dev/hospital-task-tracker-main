@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Panel - Full Rights</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+</head>
+<script>
+    // पेज लोड होते ही चेक करेगा कि पासवर्ड डालकर आया है या डायरेक्ट
+    if (localStorage.getItem("admin_authenticated") !== "true") {
+        alert("Unauthorized Access! Please login from User Panel.");
+        window.location.href = "../index.html"; // वापस यूजर पैनल पर फेंक देगा
+    }
+</script>
+
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark" style="position: sticky; top: 0; z-index: 1;">
+    <a class="navbar-brand" href="#">Admin Control Dashboard</a>
+    <div class="navbar-nav mr-auto">
+        <button onclick="window.close();" class="btn btn-danger btn-sm ml-2">Close Admin Panel</button>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    
+    <div class="row">
+        <div class="col-md-6">
+            <h2>Department Management</h2>
+            <div class="row mb-3">
+                <div class="col-md-8"><input type="text" id="deptName" class="form-control" placeholder="Enter Department"></div>
+                <div class="col-md-4"><button class="btn btn-success btn-block" onclick="addDepartment()">Add</button></div>
+            </div>
+            <table class="table table-bordered table-sm"><tbody id="deptTable"></tbody></table>
+        </div>
+        
+        <div class="col-md-6">
+            <h2>User Management</h2>
+            <div class="row mb-3">
+                <div class="col-md-8"><input type="text" id="newAdminUserName" class="form-control" placeholder="Enter User Name"></div>
+                <div class="col-md-4"><button class="btn btn-success btn-block" onclick="addAdminUser()">Add</button></div>
+            </div>
+            <table class="table table-bordered table-sm"><tbody id="adminUserTable"></tbody></table>
+        </div>
+    </div>
+    
+    <hr style="border-top: 2px solid #ccc;">
+
+    <h2>Admin Rights: Add New Task</h2>
+    <div class="card mb-4 bg-light">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <label>User Name</label>
+                    <select class="form-control" id="userName"></select>
+                </div>
+                <div class="col-md-3">
+                    <label>Department</label>
+                    <select class="form-control" id="department"></select>
+                </div>
+                <div class="col-md-2">
+                    <label>Priority</label>
+                    <select class="form-control" id="priority">
+                        <option value="High">🔴 High</option>
+                        <option value="Medium">🟡 Medium</option>
+                        <option value="Low">🟢 Low</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label>Status</label>
+                    <select class="form-control" id="status">
+                        <option>Pending</option>
+                        <option>In Progress</option>
+                        <option>Completed</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label>Date & Time</label>
+                    <input type="datetime-local" class="form-control" id="taskDate">
+                </div>
+            </div>
+            <div class="form-group mt-3">
+                <label>Task Description</label>
+                <textarea class="form-control" id="addTxt" rows="2" placeholder="Enter Task Details..."></textarea>
+            </div>
+            <button class="btn btn-primary" id="adminAddBtn">Add Task From Admin</button>
+        </div>
+    </div>
+
+    <div class="row text-center mb-4">
+        <div class="col-md-3"><div class="card bg-info text-white"><div class="card-body"><h5>Total Tasks</h5><h3 id="totalTasks">0</h3></div></div></div>
+        <div class="col-md-3"><div class="card bg-danger text-white"><div class="card-body"><h5>Pending</h5><h3 id="pendingTasks">0</h3></div></div></div>
+        <div class="col-md-3"><div class="card bg-warning text-dark"><div class="card-body"><h5>In Progress</h5><h3 id="progressTasks">0</h3></div></div></div>
+        <div class="col-md-3"><div class="card bg-success text-white"><div class="card-body"><h5>Completed</h5><h3 id="completedTasks">0</h3></div></div></div>
+    </div>
+
+    <h3>All Employees Task Management</h3>
+    <table class="table table-bordered table-hover">
+        <thead class="thead-dark">
+            <tr>
+                <th>ID</th>
+                <th>User Name</th>
+                <th>Department</th>
+                <th>Task</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Date</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="adminTaskTable"></tbody>
+    </table>
+</div>
+
+<script src="admin.js"></script>
+</body>
+</html>
