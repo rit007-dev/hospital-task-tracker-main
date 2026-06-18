@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT-helpdesk Management System</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.5/xlsx.full.min.js"></script>
+    <style>
+        .nav-pills .nav-link.active {
+            background-color: #28a745 !important;
+            color: white !important;
+        }
+        .nav-pills .nav-link {
+            color: #fff;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .badge-overdue {
+            background-color: #dc3545;
+            color: white;
+            font-size: 11px;
+            animation: blinker 1.5s linear infinite;
+        }
+        @keyframes blinker {
+            50% { opacity: 0.5; }
+        }
+        .inline-edit-input {
+            width: 100%;
+            padding: 4px;
+            border: 2px solid #007bff;
+            border-radius: 4px;
+        }
+        #undoToast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: none;
+            background-color: #333;
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 4px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body class="bg-light" onload="initApp()">
+
+
+
+
+
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top shadow">
+        <a class="navbar-brand font-weight-bold" href="#" onclick="switchTab('dashboard-view')">📋 Task System</a>
+        
+        <div class="ml-auto">
+            <div class="nav nav-pills">
+                <a class="nav-link active" id="tab-dashboard" href="#" onclick="switchTab('dashboard-view')">Dashboard List</a>
+                <a class="nav-link" id="tab-addtask" href="#" onclick="switchTab('addtask-view')">➕ Add New Task</a>
+                <a class="nav-link bg-warning text-dark" id="tab-admin" href="#" onclick="triggerAdminLogin()">🔐 Admin Panel</a>
+                <a class="nav-link bg-danger text-white"
+   href="login.html"
+   onclick="localStorage.removeItem('currentUser')">
+   Logout
+</a>
+                
+            </div>
+        </div>
+    </nav>
+
+    <div id="undoToast">
+        <span>Task deleted successfully.</span>
+        <button class="btn btn-warning btn-sm ml-3 font-weight-bold" onclick="undoLastDelete()">Undo ↩️</button>
+    </div>
+
+    <div class="container-fluid my-4">
+
+        <div id="dashboard-view" class="app-view">
+            <h2 id="dashboardTitle"
+    class="mb-4 text-secondary font-weight-bold">
+    Pending Task List
+</h2>
+
+            <div class="row mb-4 bg-white p-3 shadow-sm rounded">
+                <div class="col-md-3">
+                    <label class="font-weight-bold text-muted">Filter by Department</label>
+                    <select class="form-control" id="filterDepartment" onchange="showTasks()"></select>
+                </div>
+                <div class="col-md-4">
+                    <label class="font-weight-bold text-muted">Search Anything</label>
+                    <input type="text" id="searchTxt" class="form-control" placeholder="Search tasks, names, descriptions...">
+                </div>
+                <div class="col-md-2 text-right align-self-end">
+                    <button id="toggleCompletedBtn" class="btn btn-outline-primary btn-block font-weight-bold" onclick="toggleCompletedTasks()">👁️ Show All Tasks</button>
+                </div>
+                <div class="col-md-3 text-right align-self-end">
+                    <button class="btn btn-success font-weight-bold btn-block" onclick="exportToExcel()">Export To Excel</button>
+                </div>
+            </div>
+
+            <div class="row text-center mb-2">
+                <div class="col-md-3 mb-2"><div class="card bg-white text-dark border-primary shadow-sm"><div class="card-body py-2"><h6>Total Tasks</h6><h3 id="totalTasks" class="m-0 font-weight-bold text-primary">0</h3></div></div></div>
+                <div class="col-md-3 mb-2"><div class="card bg-white text-dark border-danger shadow-sm"><div class="card-body py-2"><h6>Pending</h6><h3 id="pendingTasks" class="m-0 font-weight-bold text-danger">0</h3></div></div></div>
+                <div class="col-md-3 mb-2"><div class="card bg-white text-dark border-warning shadow-sm"><div class="card-body py-2"><h6>In Progress</h6><h3 id="progressTasks" class="m-0 font-weight-bold text-warning">0</h3></div></div></div>
+                <div class="col-md-3 mb-2"><div class="card bg-white text-dark border-success shadow-sm"><div class="card-body py-2"><h6>Completed</h6><h3 id="completedTasks" class="m-0 font-weight-bold text-success">0</h3></div></div></div>
+            </div>
+
+            <div class="row px-3 mb-4">
+                <div class="w-100">
+                    <label class="font-weight-bold text-muted mb-1">Overall Task Completion Progress</label>
+                    <div class="progress shadow-sm" style="height: 25px;">
+                        <div id="liveProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-success font-weight-bold text-white" role="progressbar" style="width: 0%; font-size: 14px;">0% Done</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm">
+                <div class="card-header bg-secondary text-white py-2 font-italic" style="font-size: 13px;">
+                    💡 Tip: Double-click directly on any task text to quickly edit it. Changes will be instantly reported to Admin logs.
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover m-0">
+                        <thead class="thead-dark">
+                            <tr>
+                                <th width="5%">ID</th>
+                                <th width="15%">User Name</th>
+                                <th width="12%">Department</th>
+                                <th width="43%">Task Description (Double Click to Edit)</th>
+                                <th width="10%">Priority</th>
+                                <th width="10%">Status</th>
+                                <th width="10%">Date Info</th>
+                                <th width="5%" id="actionHeader" style="display:none;">Action</th> </tr>
+                        </thead>
+                        <tbody id="taskTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+
+        <div id="addtask-view" class="app-view d-none">
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="card shadow">
+                        <div class="card-header bg-primary text-white font-weight-bold">📬 Create & Deploy New Employee Task</div>
+                        <div class="card-body">
+                            <div class="row form-group d-none">
+    <div class="col-md-6">
+        <label class="font-weight-bold">User Name</label>
+        <select class="form-control" id="userName"></select>
+    </div>
+    <div class="col-md-6">
+        <label class="font-weight-bold">Department</label>
+        <select class="form-control" id="department"></select>
+    </div>
+</div>
+                            <div class="row form-group">
+                                <div class="col-md-6">
+                                    <label class="font-weight-bold">Priority</label>
+                                    <select class="form-control" id="priority">
+                                        <option value="High">High 🔴</option>
+                                        <option value="Medium">Medium 🟡</option>
+                                        <option value="Low">Low 🟢</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="font-weight-bold">Status</label>
+                                    <select class="form-control" id="status">
+                                        <option>Pending</option>
+                                        <option>In Progress</option>
+                                        <option>Completed</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="font-weight-bold">Date & Time</label>
+                                <input type="datetime-local" class="form-control" id="taskDate">
+                            </div>
+                            <div class="form-group">
+                                <label class="font-weight-bold">Task Description</label>
+                                <textarea class="form-control" id="addTxt" rows="4" placeholder="Enter task instructions here..."></textarea>
+                            </div>
+                            <hr>
+                            <button class="btn btn-success btn-lg btn-block font-weight-bold" onclick="saveNewTask()">Save & Publish Task</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <div id="admin-view" class="app-view d-none">
+            <div class="alert alert-danger text-center font-weight-bold shadow-sm mb-4">⚠️ Welcome to Admin Master Settings Area</div>
+            
+            <div class="card border-success shadow-sm mb-4">
+                <div class="card-header bg-success text-white font-weight-bold">
+                    <span>🔄 Database Protection Suite (Backup & Restore)</span>
+                    <button class="btn btn-sm btn-light font-weight-bold float-right" onclick="exitAdminMode()">🔒 Exit Admin Control Mode</button>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted m-0 mb-3">Download a full backup of all configurations, employees, and data to a local file, or restore from an existing backup instantly.</p>
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <button class="btn btn-outline-success btn-block font-weight-bold" onclick="downloadSystemBackup()">📥 Download Database Backup File</button>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <input type="file" id="backupFileSelector" class="d-none" accept=".json" onchange="importSystemBackup(event)">
+                            <button class="btn btn-outline-primary btn-block font-weight-bold" onclick="document.getElementById('backupFileSelector').click()">📤 Upload & Restore Backup File</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-md-6 mb-3">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header bg-dark text-white font-weight-bold">🏢 Department Management</div>
+                        <div class="card-body">
+                            <div class="input-group mb-3">
+                                <input type="text" id="deptName" class="form-control" placeholder="Add New Department Name...">
+                                <div class="input-group-append"><button class="btn btn-success" onclick="addDepartment()">Add</button></div>
+                            </div>
+                            <table class="table table-striped table-bordered table-sm"><tbody id="deptTable"></tbody></table>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header bg-dark text-white font-weight-bold">👥 Login User Management</div>
+                        <div class="card-body">
+                            <div class="form-row mb-2">
+                                <div class="col-md-3 mb-2">
+                                    <input type="text" id="newLoginUsername" class="form-control" placeholder="Username">
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <input type="password" id="newLoginPassword" class="form-control" placeholder="Password">
+                                </div>
+                                <div class="col-md-3 mb-2">
+                                    <select id="newLoginDepartment" class="form-control"></select>
+                                </div>
+                                <div class="col-md-2 mb-2">
+                                    <select id="newLoginRole" class="form-control">
+                                        <option value="user">User</option>
+                                        <option value="admin">Admin</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-1 mb-2">
+                                    <button class="btn btn-success btn-block" onclick="addLoginUser()">Add</button>
+                                </div>
+                            </div>
+                            <table class="table table-striped table-bordered table-sm">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Username</th>
+                                        <th>Department</th>
+                                        <th>Role</th>
+                                        <th>Password</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="adminUserTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-warning shadow-sm mb-4">
+                <div class="card-header bg-warning text-dark font-weight-bold">🔐 Security Control: Change Access Password</div>
+                <div class="card-body">
+                    <div class="row align-items-end">
+                        <div class="col-md-9">
+                            <label class="font-weight-bold">Set New Admin Password</label>
+                            <input type="password" id="newPass" class="form-control" placeholder="Enter new password...">
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-dark btn-block font-weight-bold" onclick="changeAdminPassword()">Update Password</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-info shadow-sm mb-4">
+                <div class="card-header bg-info text-white font-weight-bold d-flex justify-content-between align-items-center">
+                    <span>🔔 User Activity Log (Edit Notifications)</span>
+                    <button class="btn btn-danger btn-sm font-weight-bold py-0" onclick="clearNotificationLogs()">🗑️ Clear Log History</button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                        <table class="table table-striped table-hover table-bordered m-0" style="font-size: 13px;">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th width="5%">#</th>
+                                    <th width="15%">Modified By</th>
+                                    <th width="35%">Original Content (पहिले ये था)</th>
+                                    <th width="35%">Updated Content (अब ये है)</th>
+                                    <th width="10%">Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody id="notificationTableBody">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
